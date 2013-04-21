@@ -1,6 +1,11 @@
 // A static blog generator, because everyone needs to write one. With
 // categories, markdown, atom feeds.
 //
+// To get started, copy example/exampleconf.go and customize it for
+// your setup. Run something like example/build.sh to build your site.
+//
+// You need to provide your own templates.
+//
 // Thomas Kappler <http://www.thomaskappler.net/>
 //
 // This code is under BSD license. See license-bsd.txt.
@@ -217,7 +222,7 @@ func readArticleFromFile(path, dateStampFormat string) (*article, error) {
 				fmt.Printf("  Skipping unknown header field %s in article %v\n", key, fileBaseName)
 			}
 		} else {
-			return nil, fmt.Errorf("Invalid header line in article %v: %v", path, l)
+			return nil, fmt.Errorf("Invalid header line in article %v: %s", path, l)
 		}
 	}
 
