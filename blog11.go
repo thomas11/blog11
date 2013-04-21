@@ -84,7 +84,7 @@ func (as articles) Less(i, j int) bool { return as[i].Date.After(as[j].Date) }
 
 type categoryArticles struct {
 	category category
-	articles []*article
+	articles articles
 }
 
 type articlesByCategory []categoryArticles
@@ -283,6 +283,10 @@ func ReadSite(conf *SiteConf) (*Site, error) {
 	sort.Sort(thisSite.articles)
 	// Order categories by the number of articles in them.
 	sort.Sort(thisSite.articlesByCategory)
+	for i, cat := range thisSite.articlesByCategory {
+		sort.Sort(cat.articles)
+		thisSite.articlesByCategory[i] = cat
+	}
 
 	return &thisSite, nil
 }

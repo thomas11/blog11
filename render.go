@@ -57,7 +57,11 @@ func (te *templateEngine) renderArticle(tp templateParam, a *article, w io.Write
 	body := highlightCode(a.Body)
 
 	renderedBody := template.HTML(te.toHtml.render(body))
-	p := articleTemplateParam{templateParam: tp, article: a, RenderedBody: renderedBody}
+	p := articleTemplateParam{
+		templateParam: tp,
+		article:       a,
+		RenderedBody:  renderedBody,
+	}
 
 	t := te.getTemplate("article.html")
 	return t.Execute(w, p), string(renderedBody)
