@@ -55,6 +55,14 @@ type article struct {
 	Static           bool
 }
 
+func (a *article) FormatDate() string {
+	return formatDate(a.Date)
+}
+
+func (a *article) FormatDateShort() string {
+	return formatDateShort(a.Date)
+}
+
 func (a *article) String() string {
 	b := new(bytes.Buffer)
 	b.WriteString("title: ")
@@ -83,8 +91,28 @@ func (as articles) Swap(i, j int)      { as[i], as[j] = as[j], as[i] }
 func (as articles) Less(i, j int) bool { return as[i].Date.After(as[j].Date) }
 
 type categoryArticles struct {
-	category category
-	articles articles
+	Category category
+	Articles articles
+}
+
+func (c categoryArticles) EarliestDateFormatted() string {
+	t := time.Now()
+	for _, a := range c.Articles {
+		if a.Date.Before(t) {
+			t = a.Date
+		}
+	}
+	return formatDateShort(t)
+}
+
+func (c categoryArticles) LatestDateFormatted() string {
+	var t time.Time
+	for _, a := range c.Articles {
+		if a.Date.After(t) {
+			t = a.Date
+		}
+	}
+	return formatDateShort(t)
 }
 
 type articlesByCategory []categoryArticles
@@ -93,7 +121,7 @@ type articlesByCategory []categoryArticles
 func (s articlesByCategory) Len() int      { return len(s) }
 func (s articlesByCategory) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
 func (s articlesByCategory) Less(i, j int) bool {
-	li, lj := len(s[i].articles), len(s[j].articles)
+	li, lj := len(s[i].Articles), len(s[j].Articles)
 	if li > lj {
 		return true
 	} else if lj > li {
@@ -101,12 +129,12 @@ func (s articlesByCategory) Less(i, j int) bool {
 	}
 
 	var latestDate1, latestDate2 time.Time
-	for _, article := range s[i].articles {
+	for _, article := range s[i].Articles {
 		if article.Date.After(latestDate1) {
 			latestDate1 = article.Date
 		}
 	}
-	for _, article := range s[j].articles {
+	for _, article := range s[j].Articles {
 		if article.Date.After(latestDate2) {
 			latestDate2 = article.Date
 		}
@@ -116,24 +144,24 @@ func (s articlesByCategory) Less(i, j int) bool {
 
 func (ac *articlesByCategory) addArticle(c category, a *article) {
 	for i, cat := range *ac {
-		if cat.category == c {
-			cat.articles = append(cat.articles, a)
+		if cat.Category == c {
+			cat.Articles = append(cat.Articles, a)
 			(*ac)[i] = cat
 			return
 		}
 	}
 
 	newCA := categoryArticles{c, make([]*article, 1, 10)}
-	newCA.articles[0] = a
+	newCA.Articles[0] = a
 	*ac = append(*ac, newCA)
 }
 
 func (ac articlesByCategory) String() string {
 	b := new(bytes.Buffer)
 	for _, c := range ac {
-		b.WriteString(c.category.String())
+		b.WriteString(c.Category.String())
 		b.WriteString(": ")
-		for i, a := range c.articles {
+		for i, a := range c.Articles {
 			if i > 0 {
 				b.WriteString(", ")
 			}
@@ -155,10 +183,10 @@ type Site struct {
 func (s *Site) frequentCategories(n, minArticles int) []category {
 	frequent := make([]category, 0, n)
 	for i, c := range s.articlesByCategory {
-		if i == n || len(c.articles) < minArticles {
+		if i == n || len(c.Articles) < minArticles {
 			break
 		}
-		frequent = append(frequent, c.category)
+		frequent = append(frequent, c.Category)
 	}
 
 	return frequent
@@ -284,7 +312,7 @@ func ReadSite(conf *SiteConf) (*Site, error) {
 	// Order categories by the number of articles in them.
 	sort.Sort(thisSite.articlesByCategory)
 	for i, cat := range thisSite.articlesByCategory {
-		sort.Sort(cat.articles)
+		sort.Sort(cat.Articles)
 		thisSite.articlesByCategory[i] = cat
 	}
 
@@ -323,24 +351,35 @@ func (s *Site) RenderHtml() error {
 	}
 
 	for _, c := range s.articlesByCategory {
-		catId := c.category.Id()
+		catId := c.Category.Id()
 		outHtmlName := filepath.Join(catDir, catId+".html")
-		globalTP.PageTitle = c.category.String()
+		globalTP.PageTitle = c.Category.String()
 		globalTP.FileId = catId
-		err := renderArticleListToFile(c.articles, outHtmlName, globalTP, engine)
+		err := renderArticleListToFile(c.Articles, outHtmlName, globalTP, engine)
 		if err != nil {
 			return err
 		}
 	}
+
+	// Render the topics/categories overview page.
+	var b bytes.Buffer
+	globalTP.PageTitle = "Topics"
+	globalTP.FileId = "topics"
+	err := engine.renderTopics(globalTP, s.articlesByCategory, &b)
+	if err != nil {
+		return err
+	}
+	outHtmlName := filepath.Join(s.conf.OutDir, globalTP.FileId+".html")
+	ioutil.WriteFile(outHtmlName, b.Bytes(), os.FileMode(0664))
 
 	// Render index.html with the last MaxArticlesOnIndex articles.
 	articlesForIndex := s.articles
 	if len(s.articles) > s.conf.MaxArticlesOnIndex {
 		articlesForIndex = articlesForIndex[:s.conf.MaxArticlesOnIndex]
 	}
-	outHtmlName := filepath.Join(s.conf.OutDir, "index.html")
-	globalTP.PageTitle = "index"
+	globalTP.PageTitle = s.conf.SiteTitle
 	globalTP.FileId = "index"
+	outHtmlName = filepath.Join(s.conf.OutDir, globalTP.FileId+".html")
 	return renderArticleListToFile(articlesForIndex, outHtmlName, globalTP, engine)
 }
 

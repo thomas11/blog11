@@ -82,12 +82,12 @@ func (s *Site) RenderAtom() error {
 
 func (s *Site) renderAndSaveCategoriesAtom() error {
 	for _, catArticles := range s.articlesByCategory {
-		cat := string(catArticles.category)
+		cat := string(catArticles.Category)
 		title := s.conf.SiteTitle + ` Category "` + cat + `."`
 		urlPath := s.conf.CategoriesOutDir + "/" + cat + "/"
 		filePath := filepath.Join(s.conf.OutDir, s.conf.CategoriesOutDir, cat+".xml")
 
-		err := s.renderAndSaveFeed(title, urlPath, filePath, catArticles.articles)
+		err := s.renderAndSaveFeed(title, urlPath, filePath, catArticles.Articles)
 		if err != nil {
 			return err
 		}

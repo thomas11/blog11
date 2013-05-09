@@ -8,7 +8,16 @@ import (
 	"io"
 	"log"
 	"os/exec"
+	"time"
 )
+
+func formatDate(d time.Time) string {
+	return d.Format("January 2, 2006")
+}
+
+func formatDateShort(d time.Time) string {
+	return d.Format("Jan 2, 2006")
+}
 
 type templateParam struct {
 	PageTitle          string
@@ -22,17 +31,18 @@ type articleTemplateParam struct {
 	RenderedBody template.HTML
 }
 
-func (a *article) FormatDate() string {
-	return a.Date.Format("January 2, 2006")
-}
-
-func (a *article) FormatDateShort() string {
-	return a.Date.Format("Jan 2, 2006")
-}
-
 type articleListTemplateParam struct {
 	templateParam
 	Articles []*article
+}
+
+type topicsTemplateParam struct {
+	templateParam
+	ArticlesByCat articlesByCategory
+}
+
+func (t topicsTemplateParam) Eq(a, b int) bool {
+	return a == b
 }
 
 type renderer interface {
@@ -70,6 +80,15 @@ func (te *templateEngine) renderArticle(tp templateParam, a *article, w io.Write
 func (te *templateEngine) renderArticleList(tp templateParam, articles []*article, w io.Writer) error {
 	p := articleListTemplateParam{templateParam: tp, Articles: articles}
 	t := te.getTemplate("list.html")
+	return t.Execute(w, p)
+}
+
+func (te *templateEngine) renderTopics(tp templateParam, topics articlesByCategory, w io.Writer) error {
+	p := topicsTemplateParam{
+		templateParam: tp,
+		ArticlesByCat: topics,
+	}
+	t := te.getTemplate("topics.html")
 	return t.Execute(w, p)
 }
 
