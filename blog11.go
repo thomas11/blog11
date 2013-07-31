@@ -28,8 +28,7 @@ type SiteConf struct {
 	BaseUrl           string
 	SiteTitle         string
 
-	TemplateDir        string
-	MaxArticlesOnIndex int
+	TemplateDir string
 
 	WritingDir                 string
 	WritingFileExtension       string
@@ -38,6 +37,10 @@ type SiteConf struct {
 	OutDir           string
 	CategoriesOutDir string
 	ImgOutDir        string
+
+	MaxArticlesOnIndex           int
+	NumFreqCategories            int
+	MinArticlesForFreqCategories int
 }
 
 type category string
@@ -90,29 +93,60 @@ func (as articles) Len() int           { return len(as) }
 func (as articles) Swap(i, j int)      { as[i], as[j] = as[j], as[i] }
 func (as articles) Less(i, j int) bool { return as[i].Date.After(as[j].Date) }
 
+func (as articles) earliestDate() time.Time {
+	t := time.Now()
+	for _, a := range as {
+		if a.Date.Before(t) {
+			t = a.Date
+		}
+	}
+	return t
+}
+
+func (as articles) latestDate() time.Time {
+	var t time.Time
+	for _, a := range as {
+		if a.Date.After(t) {
+			t = a.Date
+		}
+	}
+	return t
+}
+
+func (as articles) byCategory() articlesByCategory {
+	var t time.Time
+	return as.byCategoryFrom(t)
+}
+
+func (as articles) byCategoryFrom(from time.Time) articlesByCategory {
+	byCat := make(articlesByCategory, 0, 20)
+
+	for _, art := range as {
+		if art.Date.Before(from) {
+			continue
+		}
+		for _, cat := range art.Categories {
+			byCat.addArticle(cat, art)
+		}
+	}
+
+	// Order categories by the number of articles in them.
+	sort.Sort(byCat)
+
+	return byCat
+}
+
 type categoryArticles struct {
 	Category category
 	Articles articles
 }
 
 func (c categoryArticles) EarliestDateFormatted() string {
-	t := time.Now()
-	for _, a := range c.Articles {
-		if a.Date.Before(t) {
-			t = a.Date
-		}
-	}
-	return formatDateShort(t)
+	return formatDateShort(c.Articles.earliestDate())
 }
 
 func (c categoryArticles) LatestDateFormatted() string {
-	var t time.Time
-	for _, a := range c.Articles {
-		if a.Date.After(t) {
-			t = a.Date
-		}
-	}
-	return formatDateShort(t)
+	return formatDateShort(c.Articles.latestDate())
 }
 
 type articlesByCategory []categoryArticles
@@ -128,17 +162,8 @@ func (s articlesByCategory) Less(i, j int) bool {
 		return false
 	}
 
-	var latestDate1, latestDate2 time.Time
-	for _, article := range s[i].Articles {
-		if article.Date.After(latestDate1) {
-			latestDate1 = article.Date
-		}
-	}
-	for _, article := range s[j].Articles {
-		if article.Date.After(latestDate2) {
-			latestDate2 = article.Date
-		}
-	}
+	latestDate1 := s[i].Articles.latestDate()
+	latestDate2 := s[j].Articles.latestDate()
 	return latestDate1.After(latestDate2)
 }
 
@@ -173,16 +198,15 @@ func (ac articlesByCategory) String() string {
 }
 
 type Site struct {
-	articles           articles
-	articlesByCategory articlesByCategory
-	conf               *SiteConf
-	renderCache        map[string]string
+	articles    articles
+	conf        *SiteConf
+	renderCache map[string]string
 }
 
 // Return the most frequent n categories.
-func (s *Site) frequentCategories(n, minArticles int) []category {
+func (ac articlesByCategory) frequentCategories(n, minArticles int) []category {
 	frequent := make([]category, 0, n)
-	for i, c := range s.articlesByCategory {
+	for i, c := range ac {
 		if i == n || len(c.Articles) < minArticles {
 			break
 		}
@@ -260,7 +284,8 @@ func readArticleFromFile(path, dateStampFormat string) (*article, error) {
 			return nil, fmt.Errorf("Skipping %v, name too short.", fileBaseName)
 		}
 
-		date, err := time.Parse(dateStampFormat, fileBaseName[:len(dateStampFormat)])
+		dateStr := fileBaseName[:len(dateStampFormat)]
+		date, err := time.Parse(dateStampFormat, dateStr)
 		if err != nil {
 			return nil, fmt.Errorf("Invalid date stamp in %v", dateStampFormat)
 		}
@@ -270,14 +295,14 @@ func readArticleFromFile(path, dateStampFormat string) (*article, error) {
 	return a, nil
 }
 
-func renderArticleListToFile(articles []*article, path string, tp templateParam, engine templateEngine) error {
+func renderArticleListToFile(articles []*article, path string, tp templateParam, showTopicsLink bool, engine templateEngine) error {
 	outFile, err := os.Create(path)
 	if err != nil {
 		return err
 	}
 	defer outFile.Close()
 
-	return engine.renderArticleList(tp, articles, outFile)
+	return engine.renderArticleList(tp, articles, showTopicsLink, outFile)
 }
 
 func ReadSite(conf *SiteConf) (*Site, error) {
@@ -287,34 +312,21 @@ func ReadSite(conf *SiteConf) (*Site, error) {
 	}
 
 	thisSite := Site{
-		articles:           make(articles, 0, 100),
-		articlesByCategory: make(articlesByCategory, 0, 10),
-		conf:               conf,
-		renderCache:        make(map[string]string),
+		articles:    make(articles, 0, 100),
+		conf:        conf,
+		renderCache: make(map[string]string),
 	}
 
 	for _, f := range files {
-		fmt.Println(f)
 		a, err := readArticleFromFile(f, conf.WritingFileDateStampFormat)
 		if err != nil {
 			return nil, err
 		}
-
 		thisSite.articles = append(thisSite.articles, a)
-
-		for _, cat := range a.Categories {
-			thisSite.articlesByCategory.addArticle(cat, a)
-		}
 	}
 
 	// Order articles by date.
 	sort.Sort(thisSite.articles)
-	// Order categories by the number of articles in them.
-	sort.Sort(thisSite.articlesByCategory)
-	for i, cat := range thisSite.articlesByCategory {
-		sort.Sort(cat.Articles)
-		thisSite.articlesByCategory[i] = cat
-	}
 
 	return &thisSite, nil
 }
@@ -324,14 +336,20 @@ func (s *Site) RenderHtml() error {
 
 	// Create a global template parameter holder. We'll re-use for all
 	// pages, overwriting the title.
-	globalTP := templateParam{FrequentCategories: s.frequentCategories(6, 2)}
+	frequentCategoriesFrom := time.Now().Add(-1 * time.Hour * 24 * 365 * 2)
+	globalTP := templateParam{
+		FrequentCategories: s.articles.byCategoryFrom(frequentCategoriesFrom).frequentCategories(
+			s.conf.NumFreqCategories,
+			s.conf.MinArticlesForFreqCategories),
+	}
 
 	// Render the articles.
 	for _, a := range s.articles {
 		outHtmlName := filepath.Join(s.conf.OutDir, a.Id+".html")
 		var b bytes.Buffer
 		globalTP.PageTitle = a.Title
-		globalTP.FileId = "index"
+		globalTP.FeedId = "index"
+		globalTP.FileId = a.Id
 		err, renderedBody := engine.renderArticle(globalTP, a, &b)
 		if err != nil {
 			return err
@@ -342,6 +360,8 @@ func (s *Site) RenderHtml() error {
 	}
 
 	// Render the category pages.
+	byCat := s.articles.byCategory()
+
 	catDir := filepath.Join(s.conf.OutDir, s.conf.CategoriesOutDir)
 	if _, err := os.Stat(catDir); os.IsNotExist(err) {
 		err2 := os.Mkdir(catDir, os.FileMode(0775))
@@ -350,12 +370,13 @@ func (s *Site) RenderHtml() error {
 		}
 	}
 
-	for _, c := range s.articlesByCategory {
+	for _, c := range byCat {
 		catId := c.Category.Id()
 		outHtmlName := filepath.Join(catDir, catId+".html")
 		globalTP.PageTitle = c.Category.String()
+		globalTP.FeedId = catId
 		globalTP.FileId = catId
-		err := renderArticleListToFile(c.Articles, outHtmlName, globalTP, engine)
+		err := renderArticleListToFile(c.Articles, outHtmlName, globalTP, false, engine)
 		if err != nil {
 			return err
 		}
@@ -364,8 +385,9 @@ func (s *Site) RenderHtml() error {
 	// Render the topics/categories overview page.
 	var b bytes.Buffer
 	globalTP.PageTitle = "Topics"
+	globalTP.FeedId = "index"
 	globalTP.FileId = "topics"
-	err := engine.renderTopics(globalTP, s.articlesByCategory, &b)
+	err := engine.renderTopics(globalTP, byCat, &b)
 	if err != nil {
 		return err
 	}
@@ -374,13 +396,15 @@ func (s *Site) RenderHtml() error {
 
 	// Render index.html with the last MaxArticlesOnIndex articles.
 	articlesForIndex := s.articles
-	if len(s.articles) > s.conf.MaxArticlesOnIndex {
+	haveMoreArticles := len(s.articles) > s.conf.MaxArticlesOnIndex
+	if haveMoreArticles {
 		articlesForIndex = articlesForIndex[:s.conf.MaxArticlesOnIndex]
 	}
 	globalTP.PageTitle = s.conf.SiteTitle
+	globalTP.FeedId = "index"
 	globalTP.FileId = "index"
 	outHtmlName = filepath.Join(s.conf.OutDir, globalTP.FileId+".html")
-	return renderArticleListToFile(articlesForIndex, outHtmlName, globalTP, engine)
+	return renderArticleListToFile(articlesForIndex, outHtmlName, globalTP, haveMoreArticles, engine)
 }
 
 func (s *Site) RenderAll() error {

@@ -22,7 +22,13 @@ func formatDateShort(d time.Time) string {
 type templateParam struct {
 	PageTitle          string
 	FrequentCategories []category
-	FileId             string
+	// A short id such as a category name or "About"
+	FileId string
+	FeedId string
+}
+
+func (t templateParam) IdIs(id string) bool {
+	return t.FileId == id
 }
 
 type articleTemplateParam struct {
@@ -33,7 +39,8 @@ type articleTemplateParam struct {
 
 type articleListTemplateParam struct {
 	templateParam
-	Articles []*article
+	Articles       []*article
+	ShowTopicsLink bool
 }
 
 type topicsTemplateParam struct {
@@ -77,8 +84,12 @@ func (te *templateEngine) renderArticle(tp templateParam, a *article, w io.Write
 	return t.Execute(w, p), string(renderedBody)
 }
 
-func (te *templateEngine) renderArticleList(tp templateParam, articles []*article, w io.Writer) error {
-	p := articleListTemplateParam{templateParam: tp, Articles: articles}
+func (te *templateEngine) renderArticleList(tp templateParam, articles []*article, showTopicsLink bool, w io.Writer) error {
+	p := articleListTemplateParam{
+		templateParam:  tp,
+		Articles:       articles,
+		ShowTopicsLink: showTopicsLink,
+	}
 	t := te.getTemplate("list.html")
 	return t.Execute(w, p)
 }

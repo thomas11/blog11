@@ -81,7 +81,7 @@ func (s *Site) RenderAtom() error {
 }
 
 func (s *Site) renderAndSaveCategoriesAtom() error {
-	for _, catArticles := range s.articlesByCategory {
+	for _, catArticles := range s.articles.byCategory() {
 		cat := string(catArticles.Category)
 		title := s.conf.SiteTitle + ` Category "` + cat + `."`
 		urlPath := s.conf.CategoriesOutDir + "/" + cat + "/"
