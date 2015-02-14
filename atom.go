@@ -32,21 +32,7 @@ func (s *Site) renderFeed(title, relUrl string, articles []*article) ([]byte, er
 		if article.Static {
 			continue
 		}
-		e := &atom.Entry{
-			Title:       article.Title,
-			Description: article.Blurb,
-			Link:        s.conf.BaseUrl + article.Id + ".html",
-			PubDate:     article.Date,
-		}
-
-		for _, cat := range article.Categories {
-			e.AddCategory(atom.Category{Term: string(cat)})
-		}
-
-		if renderedBody, ok := s.renderCache[article.Id]; ok {
-			e.Content = renderedBody
-		}
-		feed.AddEntry(e)
+		feed.AddEntry(s.entryForArticle(article))
 	}
 
 	errs := feed.Validate()
@@ -59,6 +45,25 @@ func (s *Site) renderFeed(title, relUrl string, articles []*article) ([]byte, er
 	}
 
 	return feed.GenXml()
+}
+
+func (s *Site) entryForArticle(article *article) *atom.Entry {
+	e := &atom.Entry{
+		Title:       article.Title,
+		Description: article.Blurb,
+		Link:        s.conf.BaseUrl + article.Id + ".html",
+		PubDate:     article.Date,
+	}
+
+	for _, cat := range article.Categories {
+		e.AddCategory(atom.Category{Term: string(cat)})
+	}
+
+	if renderedBody, ok := s.renderCache[article.Id]; ok {
+		e.Content = renderedBody
+	}
+
+	return e
 }
 
 func (s *Site) renderAndSaveFeed(title, relUrl, filePath string, articles []*article) error {

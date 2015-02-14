@@ -23,6 +23,12 @@ import (
 	"time"
 )
 
+type Site struct {
+	articles    articles
+	conf        *SiteConf
+	renderCache map[string]string
+}
+
 type SiteConf struct {
 	Author, AuthorUri string
 	BaseUrl           string
@@ -41,6 +47,7 @@ type SiteConf struct {
 	MaxArticlesOnIndex           int
 	NumFreqCategories            int
 	MinArticlesForFreqCategories int
+	MaxAgeForFreqCategories      time.Duration
 }
 
 type category string
@@ -48,93 +55,6 @@ type category string
 func (c category) String() string { return string(c) }
 
 func (c category) Id() string { return strings.Replace(c.String(), " ", "_", -1) }
-
-type article struct {
-	Title, Id, Blurb string
-	Date             time.Time
-	Path             string
-	Body             []byte
-	Categories       []category
-	Static           bool
-}
-
-func (a *article) FormatDate() string {
-	return formatDate(a.Date)
-}
-
-func (a *article) FormatDateShort() string {
-	return formatDateShort(a.Date)
-}
-
-func (a *article) String() string {
-	b := new(bytes.Buffer)
-	b.WriteString("title: ")
-	b.WriteString(a.Title)
-	b.WriteString("\ndate: ")
-	b.WriteString(a.Date.String())
-	b.WriteString("\nblurb: ")
-	b.WriteString(a.Blurb)
-	b.WriteString("\ncategories: ")
-	fmt.Fprintln(b, a.Categories)
-
-	body := a.Body
-	if len(body) > 200 {
-		body = append(body[:200], '.', '.', '.')
-	}
-	b.WriteString("\nbody: ")
-	b.Write(body)
-
-	return b.String()
-}
-
-type articles []*article
-
-func (as articles) Len() int           { return len(as) }
-func (as articles) Swap(i, j int)      { as[i], as[j] = as[j], as[i] }
-func (as articles) Less(i, j int) bool { return as[i].Date.After(as[j].Date) }
-
-func (as articles) earliestDate() time.Time {
-	t := time.Now()
-	for _, a := range as {
-		if a.Date.Before(t) {
-			t = a.Date
-		}
-	}
-	return t
-}
-
-func (as articles) latestDate() time.Time {
-	var t time.Time
-	for _, a := range as {
-		if a.Date.After(t) {
-			t = a.Date
-		}
-	}
-	return t
-}
-
-func (as articles) byCategory() articlesByCategory {
-	var t time.Time
-	return as.byCategoryFrom(t)
-}
-
-func (as articles) byCategoryFrom(from time.Time) articlesByCategory {
-	byCat := make(articlesByCategory, 0, 20)
-
-	for _, art := range as {
-		if art.Date.Before(from) {
-			continue
-		}
-		for _, cat := range art.Categories {
-			byCat.addArticle(cat, art)
-		}
-	}
-
-	// Order categories by the number of articles in them.
-	sort.Sort(byCat)
-
-	return byCat
-}
 
 type categoryArticles struct {
 	Category category
@@ -195,12 +115,6 @@ func (ac articlesByCategory) String() string {
 		b.WriteString("\n")
 	}
 	return b.String()
-}
-
-type Site struct {
-	articles    articles
-	conf        *SiteConf
-	renderCache map[string]string
 }
 
 // Return the most frequent n categories.
@@ -336,7 +250,12 @@ func (s *Site) RenderHtml() error {
 
 	// Create a global template parameter holder. We'll re-use for all
 	// pages, overwriting the title.
-	frequentCategoriesFrom := time.Now().Add(-1 * time.Hour * 24 * 365 * 2)
+	maxAgeForFreqCategories := s.conf.MaxAgeForFreqCategories
+	if maxAgeForFreqCategories == 0 {
+		maxAgeForFreqCategories = time.Hour * 24 * 365 * 2
+	}
+
+	frequentCategoriesFrom := time.Now().Add(-1 * maxAgeForFreqCategories)
 	globalTP := templateParam{
 		FrequentCategories: s.articles.byCategoryFrom(frequentCategoriesFrom).frequentCategories(
 			s.conf.NumFreqCategories,
