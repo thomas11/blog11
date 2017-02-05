@@ -1,5 +1,5 @@
-// A static blog generator, because everyone needs to write one. With
-// categories, markdown, atom feeds.
+// Package blog11 is a static blog generator, because everyone needs to write
+// one. With categories, markdown, atom feeds.
 //
 // To get started, copy example/exampleconf.go and customize it for
 // your setup. Run something like example/build.sh to build your site.
@@ -72,18 +72,18 @@ func (c categoryArticles) LatestDateFormatted() string {
 type articlesByCategory []categoryArticles
 
 // Order by number of articles per category, then by newest article.
-func (s articlesByCategory) Len() int      { return len(s) }
-func (s articlesByCategory) Swap(i, j int) { s[i], s[j] = s[j], s[i] }
-func (s articlesByCategory) Less(i, j int) bool {
-	li, lj := len(s[i].Articles), len(s[j].Articles)
+func (ac articlesByCategory) Len() int      { return len(ac) }
+func (ac articlesByCategory) Swap(i, j int) { ac[i], ac[j] = ac[j], ac[i] }
+func (ac articlesByCategory) Less(i, j int) bool {
+	li, lj := len(ac[i].Articles), len(ac[j].Articles)
 	if li > lj {
 		return true
 	} else if lj > li {
 		return false
 	}
 
-	latestDate1 := s[i].Articles.latestDate()
-	latestDate2 := s[j].Articles.latestDate()
+	latestDate1 := ac[i].Articles.latestDate()
+	latestDate2 := ac[j].Articles.latestDate()
 	return latestDate1.After(latestDate2)
 }
 
@@ -192,20 +192,20 @@ func readArticleFromFile(path, dateStampFormat string) (*article, error) {
 				fmt.Printf("  Skipping unknown header field %s in article %v\n", key, fileBaseName)
 			}
 		} else {
-			return nil, fmt.Errorf("Invalid header line in article %v: %s", path, l)
+			return nil, fmt.Errorf("invalid header line in article %v: %s", path, l)
 		}
 	}
 
 	// Extract the date from the filename, if it's not a static page.
 	if !a.Static {
 		if len(fileBaseName) < len(dateStampFormat)+1 {
-			return nil, fmt.Errorf("Skipping %v, name too short.", fileBaseName)
+			return nil, fmt.Errorf("skipping %v, name too short", fileBaseName)
 		}
 
 		dateStr := fileBaseName[:len(dateStampFormat)]
 		date, err := time.Parse(dateStampFormat, dateStr)
 		if err != nil {
-			return nil, fmt.Errorf("Invalid date stamp in %v", dateStampFormat)
+			return nil, fmt.Errorf("invalid date stamp in %v", dateStampFormat)
 		}
 		a.Date = date
 	}
