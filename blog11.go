@@ -160,7 +160,11 @@ func readArticleFromFile(path, dateStampFormat string) (*article, error) {
 
 	firstEmptyLine := bytes.Index(fileContent, []byte("\n\n"))
 	if firstEmptyLine == -1 {
-		return nil, fmt.Errorf("Weird article %v: no empty line.", path)
+		firstEmptyLine = bytes.Index(fileContent, []byte("\r\n\r\n"))
+
+		if firstEmptyLine == -1 {
+			return nil, fmt.Errorf("weird article %v: no empty line", path)
+		}
 	}
 
 	a := &article{
