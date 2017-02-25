@@ -3,11 +3,9 @@ package blog11
 import (
 	"bufio"
 	"bytes"
-	"fmt"
 	"html/template"
 	"io"
 	"log"
-	"os/exec"
 	"time"
 )
 
@@ -31,21 +29,22 @@ func (t templateParam) IdIs(id string) bool {
 	return t.FileId == id
 }
 
-type articleTemplateParam struct {
+type postTemplateParam struct {
 	templateParam
-	*article
+	*post
 	RenderedBody template.HTML
 }
 
-type articleListTemplateParam struct {
+type postListTemplateParam struct {
 	templateParam
-	Articles       []*article
+	PageHeading    string
+	Posts          []*post
 	ShowTopicsLink bool
 }
 
 type topicsTemplateParam struct {
 	templateParam
-	ArticlesByCat articlesByCategory
+	PostsByCategory postsByCategory
 }
 
 func (t topicsTemplateParam) Eq(a, b int) bool {
@@ -70,34 +69,35 @@ func newTemplateEngine(r renderer, dir string) templateEngine {
 	}
 }
 
-func (te *templateEngine) renderArticle(tp templateParam, a *article, w io.Writer) (error, string) {
+func (te *templateEngine) renderPost(tp templateParam, a *post, w io.Writer) (error, string) {
 	body := highlightCode(a.Body)
 
 	renderedBody := template.HTML(te.toHtml.render(body))
-	p := articleTemplateParam{
+	p := postTemplateParam{
 		templateParam: tp,
-		article:       a,
+		post:          a,
 		RenderedBody:  renderedBody,
 	}
 
-	t := te.getTemplate("article.html")
+	t := te.getTemplate("post.html")
 	return t.Execute(w, p), string(renderedBody)
 }
 
-func (te *templateEngine) renderArticleList(tp templateParam, articles []*article, showTopicsLink bool, w io.Writer) error {
-	p := articleListTemplateParam{
+func (te *templateEngine) renderPostList(tp templateParam, posts []*post, showTopicsLink bool, pageHeading string, w io.Writer) error {
+	p := postListTemplateParam{
 		templateParam:  tp,
-		Articles:       articles,
+		PageHeading:    pageHeading,
+		Posts:          posts,
 		ShowTopicsLink: showTopicsLink,
 	}
 	t := te.getTemplate("list.html")
 	return t.Execute(w, p)
 }
 
-func (te *templateEngine) renderTopics(tp templateParam, topics articlesByCategory, w io.Writer) error {
+func (te *templateEngine) renderTopics(tp templateParam, topics postsByCategory, w io.Writer) error {
 	p := topicsTemplateParam{
-		templateParam: tp,
-		ArticlesByCat: topics,
+		templateParam:   tp,
+		PostsByCategory: topics,
 	}
 	t := te.getTemplate("topics.html")
 	return t.Execute(w, p)
@@ -135,27 +135,4 @@ func highlightCode(text []byte) []byte {
 	}
 
 	return newText.Bytes()
-}
-
-//// EMACS SYNTAX HIGHLIGHTING, BROKEN ////
-
-func elispToHtmlFontify(code, mode string) string {
-	elisp := fmt.Sprintf(`(let ((buf (generate-new-buffer "highlight")))
-	(set-buffer buf)
-	(insert "%s")
-	(%s)
-	
-	(htmlfontify-buffer)
-	
-	(set-buffer (concat (buffer-name buf) ".html"))
-	(message (buffer-string)))`, code, mode)
-
-	return elisp
-}
-
-func htmlFontifyWithEmacs(code, mode string) ([]byte, error) {
-	elisp := elispToHtmlFontify(code, mode)
-	cmd := exec.Command("/Users/thomas.kappler/software/emacs/trunk/nextstep/Emacs.app/Contents/MacOS/Emacs", "--batch", "--quick", "--eval", elisp)
-	fmt.Println(cmd.Args)
-	return cmd.CombinedOutput()
 }

@@ -1,15 +1,26 @@
 package blog11
 
 import (
-	atom "github.com/thomas11/atomgenerator"
 	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
 	"time"
+
+	atom "github.com/thomas11/atomgenerator"
 )
 
-func (s *Site) renderFeed(title, relUrl string, articles []*article) ([]byte, error) {
+func (s *Site) RenderAtom() error {
+	filePath := filepath.Join(s.conf.OutDir, "index.xml")
+	err := s.renderAndSaveFeed(s.conf.SiteTitle, "", filePath, s.posts)
+	if err != nil {
+		return err
+	}
+
+	return s.renderAndSaveCategoriesAtom()
+}
+
+func (s *Site) renderFeed(title, relUrl string, articles []*post) ([]byte, error) {
 	feedUrl := s.conf.BaseUrl
 	if len(relUrl) > 0 {
 		if relUrl[0] == '/' {
@@ -47,7 +58,7 @@ func (s *Site) renderFeed(title, relUrl string, articles []*article) ([]byte, er
 	return feed.GenXml()
 }
 
-func (s *Site) entryForArticle(article *article) *atom.Entry {
+func (s *Site) entryForArticle(article *post) *atom.Entry {
 	e := &atom.Entry{
 		Title:       article.Title,
 		Description: article.Blurb,
@@ -66,7 +77,7 @@ func (s *Site) entryForArticle(article *article) *atom.Entry {
 	return e
 }
 
-func (s *Site) renderAndSaveFeed(title, relUrl, filePath string, articles []*article) error {
+func (s *Site) renderAndSaveFeed(title, relUrl, filePath string, articles []*post) error {
 	atomXml, err := s.renderFeed(title, relUrl, articles)
 	if err != nil {
 		return err
@@ -75,24 +86,14 @@ func (s *Site) renderAndSaveFeed(title, relUrl, filePath string, articles []*art
 	return ioutil.WriteFile(filePath, atomXml, os.FileMode(0664))
 }
 
-func (s *Site) RenderAtom() error {
-	filePath := filepath.Join(s.conf.OutDir, "index.xml")
-	err := s.renderAndSaveFeed(s.conf.SiteTitle, "", filePath, s.articles)
-	if err != nil {
-		return err
-	}
-
-	return s.renderAndSaveCategoriesAtom()
-}
-
 func (s *Site) renderAndSaveCategoriesAtom() error {
-	for _, catArticles := range s.articles.byCategory() {
-		cat := string(catArticles.Category)
-		title := s.conf.SiteTitle + ` Category "` + cat + `."`
-		urlPath := s.conf.CategoriesOutDir + "/" + cat + "/"
-		filePath := filepath.Join(s.conf.OutDir, s.conf.CategoriesOutDir, cat+".xml")
+	for _, catArticles := range groupByCategory(s.posts) {
+		category := catArticles.Category
+		title := s.conf.SiteTitle + ` Category "` + category.String() + `."`
+		urlPath := s.conf.CategoriesOutDir + "/" + category.Id() + "/"
+		filePath := filepath.Join(s.conf.OutDir, s.conf.CategoriesOutDir, category.Id()+".xml")
 
-		err := s.renderAndSaveFeed(title, urlPath, filePath, catArticles.Articles)
+		err := s.renderAndSaveFeed(title, urlPath, filePath, catArticles.Posts)
 		if err != nil {
 			return err
 		}
