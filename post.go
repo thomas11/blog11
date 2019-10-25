@@ -43,10 +43,6 @@ func (p *post) String() string {
 
 type posts []*post
 
-func (ps posts) Len() int           { return len(ps) }
-func (ps posts) Swap(i, j int)      { ps[i], ps[j] = ps[j], ps[i] }
-func (ps posts) Less(i, j int) bool { return ps[i].Date.After(ps[j].Date) }
-
 func (ps posts) earliestDate() time.Time {
 	t := time.Now()
 	for _, a := range ps {

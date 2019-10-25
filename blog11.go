@@ -171,7 +171,7 @@ func ReadSite(conf *SiteConf) (*Site, error) {
 	}
 
 	// Order articles by date.
-	sort.Sort(thisSite.posts)
+	sort.Slice(thisSite.posts, func(i, j int) bool { return thisSite.posts[i].Date.After(thisSite.posts[j].Date) })
 
 	return &thisSite, nil
 }
@@ -179,7 +179,7 @@ func ReadSite(conf *SiteConf) (*Site, error) {
 func (s *Site) RenderHtml() error {
 	engine := newTemplateEngine(newMarkdownRenderer(), s.conf.TemplateDir)
 
-	// Create a global template parameter holder. We'll re-use for all
+	// Create a global template parameter holder. We'll re-use it for all
 	// pages, overwriting the title.
 	maxAgeForFreqCategories := s.conf.MaxAgeForFreqCategories
 	if maxAgeForFreqCategories == 0 {

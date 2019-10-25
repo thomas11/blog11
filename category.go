@@ -27,7 +27,7 @@ func (c categoryWithPosts) LatestDateFormatted() string {
 }
 
 // Posts grouped by category. Sort sorts by number of articles per category, then by newest article.
-// Create using the groupByCategory methods which sort like this.
+// Create using the groupByCategory methods which sorts like this.
 type postsByCategory []categoryWithPosts
 
 // Order
