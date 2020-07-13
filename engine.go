@@ -21,7 +21,6 @@ import (
 	"sort"
 	"time"
 
-	//"github.com/plus3it/gorecurcopy"
 	"github.com/otiai10/copy"
 )
 
@@ -54,7 +53,7 @@ func renderPostsListToFile(articles []*post, path string, tp templateParam, show
 	return engine.renderPostList(tp, articles, showTopicsLink, category.String(), outFile)
 }
 
-func ReadSite(conf *SiteConf) (*Site, error) {
+func ReadSite(conf *SiteConf, drafts bool) (*Site, error) {
 	files, err := findPostFiles(conf.WritingDir, conf.WritingFileExtension)
 	if err != nil {
 		return nil, err
@@ -71,7 +70,9 @@ func ReadSite(conf *SiteConf) (*Site, error) {
 		if err != nil {
 			return nil, err
 		}
-		thisSite.posts = append(thisSite.posts, a)
+		if drafts || !a.IsDraft() {
+			thisSite.posts = append(thisSite.posts, a)
+		}
 	}
 
 	// Order articles by date.
@@ -100,18 +101,18 @@ func (s *Site) RenderHtml() error {
 
 	// Render the articles.
 	for _, a := range s.posts {
-		outHtmlName := filepath.Join(s.conf.OutDir, a.Id+".html")
+		outHtmlName := filepath.Join(s.conf.OutDir, a.ID+".html")
 		var b bytes.Buffer
 		globalTP.PageTitle = a.Title
 		globalTP.FeedId = "index"
-		globalTP.FileId = a.Id
+		globalTP.FileId = a.ID
 		err, renderedBody := engine.renderPost(globalTP, a, &b)
 		if err != nil {
 			return err
 		}
 		ioutil.WriteFile(outHtmlName, b.Bytes(), os.FileMode(0664))
 
-		s.renderCache[a.Id] = renderedBody
+		s.renderCache[a.ID] = renderedBody
 	}
 
 	// Render the category pages.

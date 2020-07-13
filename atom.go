@@ -20,18 +20,18 @@ func (s *Site) RenderAtom() error {
 	return s.renderAndSaveCategoriesAtom()
 }
 
-func (s *Site) renderFeed(title, relUrl string, articles []*post) ([]byte, error) {
-	feedUrl := s.conf.BaseUrl
-	if len(relUrl) > 0 {
-		if relUrl[0] == '/' {
-			relUrl = relUrl[1:]
+func (s *Site) renderFeed(title, relURL string, articles []*post) ([]byte, error) {
+	feedURL := s.conf.BaseUrl
+	if len(relURL) > 0 {
+		if relURL[0] == '/' {
+			relURL = relURL[1:]
 		}
-		feedUrl += relUrl
+		feedURL += relURL
 	}
 
 	feed := atom.Feed{
 		Title:   title,
-		Link:    feedUrl,
+		Link:    feedURL,
 		PubDate: time.Now(),
 	}
 	feed.AddAuthor(atom.Author{
@@ -40,7 +40,7 @@ func (s *Site) renderFeed(title, relUrl string, articles []*post) ([]byte, error
 	})
 
 	for _, article := range articles {
-		if article.Static {
+		if article.IsStatic() {
 			continue
 		}
 		feed.AddEntry(s.entryForArticle(article))
@@ -62,7 +62,7 @@ func (s *Site) entryForArticle(article *post) *atom.Entry {
 	e := &atom.Entry{
 		Title:       article.Title,
 		Description: article.Blurb,
-		Link:        s.conf.BaseUrl + article.Id + ".html",
+		Link:        s.conf.BaseUrl + article.ID + ".html",
 		PubDate:     article.Date,
 	}
 
@@ -70,20 +70,20 @@ func (s *Site) entryForArticle(article *post) *atom.Entry {
 		e.AddCategory(atom.Category{Term: string(cat)})
 	}
 
-	if renderedBody, ok := s.renderCache[article.Id]; ok {
+	if renderedBody, ok := s.renderCache[article.ID]; ok {
 		e.Content = renderedBody
 	}
 
 	return e
 }
 
-func (s *Site) renderAndSaveFeed(title, relUrl, filePath string, articles []*post) error {
-	atomXml, err := s.renderFeed(title, relUrl, articles)
+func (s *Site) renderAndSaveFeed(title, relURL, filePath string, articles []*post) error {
+	atomXML, err := s.renderFeed(title, relURL, articles)
 	if err != nil {
 		return err
 	}
 
-	return ioutil.WriteFile(filePath, atomXml, os.FileMode(0664))
+	return ioutil.WriteFile(filePath, atomXML, os.FileMode(0664))
 }
 
 func (s *Site) renderAndSaveCategoriesAtom() error {

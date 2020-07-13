@@ -7,12 +7,29 @@ import (
 )
 
 type post struct {
-	Title, Id, Blurb string
+	Title, ID, Blurb string
 	Date             time.Time
 	Path             string
+	Flags            []string
 	Body             []byte
 	Categories       []category
-	Static           bool
+}
+
+func (p *post) IsStatic() bool {
+	return p.hasFlag("static")
+}
+
+func (p *post) IsDraft() bool {
+	return p.hasFlag("draft")
+}
+
+func (p *post) hasFlag(flag string) bool {
+	for _, f := range p.Flags {
+		if f == flag {
+			return true
+		}
+	}
+	return false
 }
 
 // Called from templates

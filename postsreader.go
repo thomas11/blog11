@@ -47,7 +47,7 @@ func readPostFromFile(path, dateStampFormat string) (*post, error) {
 	}
 
 	a := &post{
-		Id:         fileBaseName,
+		ID:         fileBaseName,
 		Body:       fileContent[firstEmptyLine+2:],
 		Categories: make([]category, 0, 5),
 	}
@@ -65,8 +65,8 @@ func readPostFromFile(path, dateStampFormat string) (*post, error) {
 				for _, c := range bytes.Split(val, []byte(",")) {
 					a.Categories = append(a.Categories, category(string(bytes.TrimSpace(c))))
 				}
-			case "static":
-				a.Static = true
+			case "flags":
+				a.Flags = strings.Split(string(val), ",")
 			default:
 				fmt.Printf("  Skipping unknown header field %s in article %v\n", key, fileBaseName)
 			}
@@ -75,7 +75,7 @@ func readPostFromFile(path, dateStampFormat string) (*post, error) {
 		}
 	}
 
-	if !a.Static {
+	if !a.IsStatic() {
 		date, err := extractDateFromFilename(fileBaseName, dateStampFormat)
 		if err != nil {
 			return nil, err

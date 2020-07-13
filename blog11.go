@@ -12,16 +12,17 @@ import (
 var siteConfPath = flag.String("siteConfPath", "blog11.json", "Path to the site configuration file")
 var serve = flag.Bool("serve", false, "Start a localhost:9999 server for the site")
 var watch = flag.Bool("watch", false, "Keep running and re-render the site on changes to the input directory.")
+var drafts = flag.Bool("drafts", false, "Include articles with the 'draft' flag.")
 
 func main() {
 	flag.Parse()
 
 	conf := readConf(*siteConfPath)
 
-	renderSite(conf)
+	renderSite(conf, *drafts)
 
 	if *watch {
-		go rerenderOnChange(conf)
+		go rerenderOnChange(conf, *drafts)
 	}
 
 	if *serve {
@@ -29,8 +30,8 @@ func main() {
 	}
 }
 
-func renderSite(conf *SiteConf) {
-	site, err := ReadSite(conf)
+func renderSite(conf *SiteConf, drafts bool) {
+	site, err := ReadSite(conf, drafts)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -52,7 +53,7 @@ func serveSite(dir string) {
 	http.ListenAndServe(port, nil)
 }
 
-func rerenderOnChange(siteConf *SiteConf) {
+func rerenderOnChange(siteConf *SiteConf, drafts bool) {
 	log.Println("Watching " + siteConf.WritingDir + " for changes...")
 
 	watcher := watcher.New()
@@ -62,7 +63,7 @@ func rerenderOnChange(siteConf *SiteConf) {
 		for {
 			select {
 			case _ = <-watcher.Event:
-				renderSite(siteConf)
+				renderSite(siteConf, drafts)
 			case err := <-watcher.Error:
 				log.Println(err)
 			case <-watcher.Closed:
