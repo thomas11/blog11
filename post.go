@@ -1,4 +1,4 @@
-package blog11
+package main
 
 import (
 	"bytes"
@@ -61,4 +61,15 @@ func (ps posts) latestDate() time.Time {
 		}
 	}
 	return t
+}
+
+func (ps posts) pruneOlderThan(minDate time.Time) posts {
+	pruned := make(posts, 0, 20)
+
+	for _, p := range ps {
+		if !p.Date.Before(minDate) {
+			pruned = append(pruned, p)
+		}
+	}
+	return pruned
 }

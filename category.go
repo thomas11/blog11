@@ -1,10 +1,9 @@
-package blog11
+package main
 
 import (
 	"bytes"
 	"sort"
 	"strings"
-	"time"
 )
 
 type category string
@@ -90,17 +89,9 @@ func (pc postsByCategory) frequentCategories(n, minPosts int) []category {
 }
 
 func groupByCategory(posts posts) postsByCategory {
-	var t time.Time
-	return groupByCategoryFrom(t, posts)
-}
-
-func groupByCategoryFrom(from time.Time, posts posts) postsByCategory {
 	byCat := make(postsByCategory, 0, 20)
 
 	for _, post := range posts {
-		if post.Date.Before(from) {
-			continue
-		}
 		for _, cat := range post.Categories {
 			byCat.addPost(cat, post)
 		}

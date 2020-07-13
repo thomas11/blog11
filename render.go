@@ -1,4 +1,4 @@
-package blog11
+package main
 
 import (
 	"bufio"
