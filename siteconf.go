@@ -8,8 +8,8 @@ import (
 )
 
 type SiteConf struct {
-	Author, AuthorUri string
-	BaseUrl           string
+	Author, AuthorURI string
+	BaseURL           string
 	SiteTitle         string
 
 	TemplateDir string

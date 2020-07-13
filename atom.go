@@ -21,7 +21,7 @@ func (s *Site) RenderAtom() error {
 }
 
 func (s *Site) renderFeed(title, relURL string, articles []*post) ([]byte, error) {
-	feedURL := s.conf.BaseUrl
+	feedURL := s.conf.BaseURL
 	if len(relURL) > 0 {
 		if relURL[0] == '/' {
 			relURL = relURL[1:]
@@ -36,7 +36,7 @@ func (s *Site) renderFeed(title, relURL string, articles []*post) ([]byte, error
 	}
 	feed.AddAuthor(atom.Author{
 		Name: s.conf.Author,
-		Uri:  s.conf.AuthorUri,
+		Uri:  s.conf.AuthorURI,
 	})
 
 	for _, article := range articles {
@@ -62,7 +62,7 @@ func (s *Site) entryForArticle(article *post) *atom.Entry {
 	e := &atom.Entry{
 		Title:       article.Title,
 		Description: article.Blurb,
-		Link:        s.conf.BaseUrl + article.ID + ".html",
+		Link:        s.conf.BaseURL + article.ID + ".html",
 		PubDate:     article.Date,
 	}
 
