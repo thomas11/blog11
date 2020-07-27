@@ -35,7 +35,6 @@ func readConf(fileName string) *SiteConf {
 	}
 
 	conf := SiteConf{}
-
 	if err = json.Unmarshal([]byte(rawConf), &conf); err != nil {
 		log.Fatal(err)
 	}
@@ -57,7 +56,8 @@ func readConf(fileName string) *SiteConf {
 	conf.WritingDir = normalizePath(conf.WritingDir, baseDir)
 	conf.StaticFilesDir = normalizePath(conf.StaticFilesDir, baseDir)
 	conf.OutDir = normalizePath(conf.OutDir, baseDir)
-	conf.CategoriesOutDir = normalizePath(conf.CategoriesOutDir, baseDir)
+
+	conf.CategoriesOutDir = normalizePath(conf.CategoriesOutDir, conf.OutDir)
 
 	conf.TemplateDir, err = filepath.Abs(conf.TemplateDir)
 	if err != nil {
