@@ -176,6 +176,5 @@ func (s *Site) CopyStaticFiles() error {
 	dirName := filepath.Base(srcDir)
 	dest := filepath.Join(s.conf.OutDir, dirName)
 	log.Println("Recursively copying ", srcDir, " to ", dest)
-	// return gorecurcopy.CopyDirectory(srcDir, dest)
 	return copy.Copy(srcDir, dest)
 }

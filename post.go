@@ -23,6 +23,10 @@ func (p *post) IsDraft() bool {
 	return p.hasFlag("draft")
 }
 
+func (p *post) ShouldGenerateToc() bool {
+	return p.hasFlag("toc")
+}
+
 func (p *post) hasFlag(flag string) bool {
 	for _, f := range p.Flags {
 		if f == flag {

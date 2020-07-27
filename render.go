@@ -52,7 +52,7 @@ func (t topicsTemplateParam) Eq(a, b int) bool {
 }
 
 type renderer interface {
-	render(in []byte) string
+	render(in []byte, generateToc bool) string
 }
 
 type templateEngine struct {
@@ -72,7 +72,7 @@ func newTemplateEngine(r renderer, dir string) templateEngine {
 func (te *templateEngine) renderPost(tp templateParam, a *post, w io.Writer) (error, string) {
 	body := highlightCode(a.Body)
 
-	renderedBody := template.HTML(te.toHtml.render(body))
+	renderedBody := template.HTML(te.toHtml.render(body, a.ShouldGenerateToc()))
 	p := postTemplateParam{
 		templateParam: tp,
 		post:          a,
