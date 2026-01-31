@@ -21,12 +21,16 @@ func main() {
 
 	renderSite(conf, *drafts)
 
-	if *watch {
+	if *watch && *serve {
+		// Run watcher in background while serving
 		go rerenderOnChange(conf, *drafts)
 	}
 
 	if *serve {
 		serveSite(conf.OutDir)
+	} else if *watch {
+		// Watch mode without serve: block on the watcher
+		rerenderOnChange(conf, *drafts)
 	}
 }
 
@@ -50,7 +54,7 @@ func serveSite(dir string) {
 
 	http.Handle("/", http.FileServer(http.Dir(dir)))
 	log.Printf("Serving %v on %v.", dir, port)
-	http.ListenAndServe(port, nil)
+	log.Fatal(http.ListenAndServe(port, nil))
 }
 
 func rerenderOnChange(siteConf *SiteConf, drafts bool) {
@@ -62,7 +66,7 @@ func rerenderOnChange(siteConf *SiteConf, drafts bool) {
 	go func() {
 		for {
 			select {
-			case _ = <-watcher.Event:
+			case <-watcher.Event:
 				renderSite(siteConf, drafts)
 			case err := <-watcher.Error:
 				log.Println(err)

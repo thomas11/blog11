@@ -14,7 +14,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -43,12 +42,16 @@ func extractDateFromFilename(filename string, dateStampFormat string) (*time.Tim
 	return &date, nil
 }
 
-func renderPostsListToFile(articles []*post, path string, tp templateParam, showTopicsLink bool, category category, engine templateEngine) error {
+func renderPostsListToFile(articles []*post, path string, tp templateParam, showTopicsLink bool, category category, engine templateEngine) (err error) {
 	outFile, err := os.Create(path)
 	if err != nil {
 		return err
 	}
-	defer outFile.Close()
+	defer func() {
+		if cerr := outFile.Close(); cerr != nil && err == nil {
+			err = cerr
+		}
+	}()
 
 	return engine.renderPostList(tp, articles, showTopicsLink, category.String(), outFile)
 }
@@ -93,11 +96,13 @@ func (s *Site) RenderHtml() error {
 
 	minPostDate := time.Now().AddDate(0, -maxAgeForFrequentCategoriesInMonths, 0)
 	postsRecentEnoughForFrequentCategories := s.posts.pruneOlderThan(minPostDate)
+	log.Println(len(s.posts), minPostDate, len(postsRecentEnoughForFrequentCategories))
 	globalTP := templateParam{
 		FrequentCategories: groupByCategory(postsRecentEnoughForFrequentCategories).frequentCategories(
 			s.conf.NumFrequentCategories,
 			s.conf.MinArticlesForFrequentCategories),
 	}
+	log.Println(globalTP.FrequentCategories)
 
 	// Render the articles.
 	for _, a := range s.posts {
@@ -106,11 +111,13 @@ func (s *Site) RenderHtml() error {
 		globalTP.PageTitle = a.Title
 		globalTP.FeedId = "index"
 		globalTP.FileId = a.ID
-		err, renderedBody := engine.renderPost(globalTP, a, &b)
+		renderedBody, err := engine.renderPost(globalTP, a, &b)
 		if err != nil {
 			return err
 		}
-		ioutil.WriteFile(outHtmlName, b.Bytes(), os.FileMode(0664))
+		if err := os.WriteFile(outHtmlName, b.Bytes(), 0o664); err != nil {
+			return err
+		}
 
 		s.renderCache[a.ID] = renderedBody
 	}
@@ -120,7 +127,7 @@ func (s *Site) RenderHtml() error {
 
 	catDir := filepath.Join(s.conf.OutDir, s.conf.CategoriesOutDir)
 	if _, err := os.Stat(catDir); os.IsNotExist(err) {
-		err2 := os.Mkdir(catDir, os.FileMode(0775))
+		err2 := os.Mkdir(catDir, 0o775)
 		if err2 != nil {
 			log.Printf("Error creating directory %v: %v", catDir, err2)
 		}
@@ -148,7 +155,9 @@ func (s *Site) RenderHtml() error {
 		return err
 	}
 	outHtmlName := filepath.Join(s.conf.OutDir, globalTP.FileId+".html")
-	ioutil.WriteFile(outHtmlName, b.Bytes(), os.FileMode(0664))
+	if err := os.WriteFile(outHtmlName, b.Bytes(), 0o664); err != nil {
+		return err
+	}
 
 	// Render index.html with the last MaxArticlesOnIndex articles.
 	articlesForIndex := s.posts

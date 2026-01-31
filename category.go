@@ -2,7 +2,8 @@ package main
 
 import (
 	"bytes"
-	"sort"
+	"cmp"
+	"slices"
 	"strings"
 )
 
@@ -10,7 +11,7 @@ type category string
 
 func (c category) String() string { return string(c) }
 
-func (c category) Id() string { return strings.Replace(c.String(), " ", "_", -1) }
+func (c category) Id() string { return strings.ReplaceAll(c.String(), " ", "_") }
 
 type categoryWithPosts struct {
 	Category category
@@ -28,22 +29,6 @@ func (c categoryWithPosts) LatestDateFormatted() string {
 // Posts grouped by category. Sort sorts by number of articles per category, then by newest article.
 // Create using the groupByCategory methods which sorts like this.
 type postsByCategory []categoryWithPosts
-
-// Order
-func (pc postsByCategory) Len() int      { return len(pc) }
-func (pc postsByCategory) Swap(i, j int) { pc[i], pc[j] = pc[j], pc[i] }
-func (pc postsByCategory) Less(i, j int) bool {
-	li, lj := len(pc[i].Posts), len(pc[j].Posts)
-	if li > lj {
-		return true
-	} else if lj > li {
-		return false
-	}
-
-	latestDate1 := pc[i].Posts.latestDate()
-	latestDate2 := pc[j].Posts.latestDate()
-	return latestDate1.After(latestDate2)
-}
 
 func (pc *postsByCategory) addPost(c category, a *post) {
 	for i, cat := range *pc {
@@ -97,8 +82,15 @@ func groupByCategory(posts posts) postsByCategory {
 		}
 	}
 
-	// Order categories by the number of articles in them.
-	sort.Sort(byCat)
+	// Order categories by the number of articles in them, then by newest article.
+	slices.SortFunc(byCat, func(a, b categoryWithPosts) int {
+		// More posts = comes first (descending order)
+		if c := cmp.Compare(len(b.Posts), len(a.Posts)); c != 0 {
+			return c
+		}
+		// If equal post count, newer comes first
+		return b.Posts.latestDate().Compare(a.Posts.latestDate())
+	})
 
 	return byCat
 }

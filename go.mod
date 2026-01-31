@@ -5,7 +5,7 @@ go 1.25
 require (
 	github.com/otiai10/copy v1.14.1
 	github.com/radovskyb/watcher v1.0.7
-	github.com/russross/blackfriday v1.6.0
+	github.com/russross/blackfriday/v2 v2.1.0
 	github.com/thomas11/atomgenerator v0.0.0-20140514140532-0b3b01da14a4
 )
 

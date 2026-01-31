@@ -3,33 +3,26 @@ package main
 import (
 	"regexp"
 
-	"github.com/russross/blackfriday"
+	"github.com/russross/blackfriday/v2"
 )
 
-var extensions int
+var extensions = blackfriday.NoIntraEmphasis |
+	blackfriday.Tables |
+	blackfriday.FencedCode |
+	blackfriday.Autolink |
+	blackfriday.Strikethrough
 
-var emptyTopLevelInTocStart, emptyTopLevelInTocEnd *regexp.Regexp
+var emptyTopLevelInTocStart = regexp.MustCompile(`<nav>\s*<ul>\s*<li>\s*<ul>\s*<li>`)
+var emptyTopLevelInTocEnd = regexp.MustCompile(`</li>\s*</ul>\s*</nav>`)
 
-func init() {
-	extensions |= blackfriday.EXTENSION_NO_INTRA_EMPHASIS
-	extensions |= blackfriday.EXTENSION_TABLES
-	extensions |= blackfriday.EXTENSION_FENCED_CODE
-	extensions |= blackfriday.EXTENSION_AUTOLINK
-	extensions |= blackfriday.EXTENSION_STRIKETHROUGH
-
-	emptyTopLevelInTocStart = regexp.MustCompile(`<nav>\s*<ul>\s*<li>\s*<ul>\s*<li>`)
-	emptyTopLevelInTocEnd = regexp.MustCompile(`</li>\s*</ul>\s*</nav>`)
-}
-
-func createHTMLFlags(generateToc bool) int {
-	var htmlFlags int
-	htmlFlags |= blackfriday.HTML_USE_XHTML
-	htmlFlags |= blackfriday.HTML_USE_SMARTYPANTS
-	htmlFlags |= blackfriday.HTML_SMARTYPANTS_FRACTIONS
-	htmlFlags |= blackfriday.HTML_SMARTYPANTS_LATEX_DASHES
+func createHTMLFlags(generateToc bool) blackfriday.HTMLFlags {
+	htmlFlags := blackfriday.UseXHTML |
+		blackfriday.Smartypants |
+		blackfriday.SmartypantsFractions |
+		blackfriday.SmartypantsLatexDashes
 
 	if generateToc {
-		htmlFlags |= blackfriday.HTML_TOC
+		htmlFlags |= blackfriday.TOC
 	}
 
 	return htmlFlags
@@ -39,13 +32,16 @@ func newMarkdownRenderer() renderer {
 	return &blackfridayHTMLRenderer{}
 }
 
-type blackfridayHTMLRenderer struct {
-}
+type blackfridayHTMLRenderer struct{}
 
 func (b *blackfridayHTMLRenderer) render(in []byte, generateToc bool) string {
 	htmlFlags := createHTMLFlags(generateToc)
-	r := blackfriday.HtmlRenderer(htmlFlags, "", "")
-	html := string(blackfriday.Markdown(in, r, extensions))
+	r := blackfriday.NewHTMLRenderer(blackfriday.HTMLRendererParameters{
+		Flags: htmlFlags,
+	})
+	html := string(blackfriday.Run(in,
+		blackfriday.WithExtensions(extensions),
+		blackfriday.WithRenderer(r)))
 
 	// Replace unnecessary nesting in ToC when we don't have an h1 heading
 	if generateToc && emptyTopLevelInTocStart.MatchString(html) {

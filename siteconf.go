@@ -2,8 +2,8 @@ package main
 
 import (
 	"encoding/json"
-	"io/ioutil"
 	"log"
+	"os"
 	"path/filepath"
 )
 
@@ -29,7 +29,7 @@ type SiteConf struct {
 }
 
 func readConf(fileName string) *SiteConf {
-	rawConf, err := ioutil.ReadFile(fileName)
+	rawConf, err := os.ReadFile(fileName)
 	if err != nil {
 		log.Fatal(err)
 	}

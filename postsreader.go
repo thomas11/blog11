@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"fmt"
-	"io/ioutil"
 	"os"
 	"path/filepath"
 	"strings"
@@ -32,7 +31,7 @@ func readPostFromFile(path, dateStampFormat string) (*post, error) {
 	fileBaseName := filepath.Base(path)
 	fileBaseName = fileBaseName[:len(fileBaseName)-len(filepath.Ext(fileBaseName))]
 
-	fileContent, err := ioutil.ReadFile(path)
+	fileContent, err := os.ReadFile(path)
 	if err != nil {
 		return nil, err
 	}

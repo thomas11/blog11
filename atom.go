@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io/ioutil"
 	"log"
 	"os"
 	"path/filepath"
@@ -83,7 +82,7 @@ func (s *Site) renderAndSaveFeed(title, relURL, filePath string, articles []*pos
 		return err
 	}
 
-	return ioutil.WriteFile(filePath, atomXML, os.FileMode(0664))
+	return os.WriteFile(filePath, atomXML, 0o664)
 }
 
 func (s *Site) renderAndSaveCategoriesAtom() error {

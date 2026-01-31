@@ -6,12 +6,9 @@ import (
 	"html/template"
 	"io"
 	"log"
+	"path/filepath"
 	"time"
 )
-
-func formatDate(d time.Time) string {
-	return d.Format("January 2, 2006")
-}
 
 func formatDateShort(d time.Time) string {
 	return d.Format("Jan 2, 2006")
@@ -69,7 +66,7 @@ func newTemplateEngine(r renderer, dir string) templateEngine {
 	}
 }
 
-func (te *templateEngine) renderPost(tp templateParam, a *post, w io.Writer) (error, string) {
+func (te *templateEngine) renderPost(tp templateParam, a *post, w io.Writer) (string, error) {
 	body := highlightCode(a.Body)
 
 	renderedBody := template.HTML(te.toHtml.render(body, a.ShouldGenerateToc()))
@@ -80,7 +77,7 @@ func (te *templateEngine) renderPost(tp templateParam, a *post, w io.Writer) (er
 	}
 
 	t := te.getTemplate("post.html")
-	return t.Execute(w, p), string(renderedBody)
+	return string(renderedBody), t.Execute(w, p)
 }
 
 func (te *templateEngine) renderPostList(tp templateParam, posts []*post, showTopicsLink bool, pageHeading string, w io.Writer) error {
@@ -106,7 +103,9 @@ func (te *templateEngine) renderTopics(tp templateParam, topics postsByCategory,
 func (te *templateEngine) getTemplate(filename string) *template.Template {
 	t, ok := te.templateCache[filename]
 	if !ok {
-		t = template.Must(template.ParseFiles(te.templateDir+"/global.html", te.templateDir+"/"+filename))
+		t = template.Must(template.ParseFiles(
+			filepath.Join(te.templateDir, "global.html"),
+			filepath.Join(te.templateDir, filename)))
 		te.templateCache[filename] = t
 	}
 	return t
